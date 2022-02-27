@@ -52,7 +52,7 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
             "highlight_method",
             "border",
             "Method of highlighting (one of 'border' or 'block') "
-            "Uses `*_border` color settings",
+                "Uses `*_border` color settings",
         ),
         ("urgent_border", "FF0000", "Urgent border color"),
         (
@@ -64,8 +64,8 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
             "unfocused_border",
             None,
             "Border color for unfocused windows. "
-            "Affects only hightlight_method 'border' and 'block'. "
-            "Defaults to None, which means no special color.",
+                "Affects only hightlight_method 'border' and 'block'. "
+                "Defaults to None, which means no special color.",
         ),
         (
             "max_title_width",
@@ -76,19 +76,19 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
             "title_width_method",
             None,
             "Method to compute the width of task title. (None, 'uniform'.)"
-            "Defaults to None, the normal behaviour.",
+                "Defaults to None, the normal behaviour.",
         ),
         (
             "parse_text",
             None,
             "Function to parse and modify window names. "
-            "e.g. function in config that removes excess "
-            "strings from window name: "
-            "def my_func(text)"
-            '    for string in [" - Chromium", " - Firefox"]:'
-            '        text = text.replace(string, "")'
-            "   return text"
-            "then set option parse_text=my_func",
+                "e.g. function in config that removes excess "
+                "strings from window name: "
+                "def my_func(text)"
+                '    for string in [" - Chromium", " - Firefox"]:'
+                '        text = text.replace(string, "")'
+                "   return text"
+                "then set option parse_text=my_func",
         ),
         ("spacing", None, "Spacing between tasks." "(if set to None, will be equal to margin_x)"),
         (
@@ -110,36 +110,41 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
             "markup_normal",
             None,
             "Text markup of the normal window state. Supports pangomarkup with markup=True."
-            'e.g., "{}" or "<span underline="low">{}</span>"',
+                'e.g., "{}" or "<span underline="low">{}</span>"',
         ),
         (
             "markup_minimized",
             None,
             "Text markup of the minimized window state. Supports pangomarkup with markup=True."
-            'e.g., "{}" or "<span underline="low">{}</span>"',
+                'e.g., "{}" or "<span underline="low">{}</span>"',
         ),
         (
             "markup_maximized",
             None,
             "Text markup of the maximized window state. Supports pangomarkup with markup=True."
-            'e.g., "{}" or "<span underline="low">{}</span>"',
+                'e.g., "{}" or "<span underline="low">{}</span>"',
         ),
         (
             "markup_floating",
             None,
             "Text markup of the floating window state. Supports pangomarkup with markup=True."
-            'e.g., "{}" or "<span underline="low">{}</span>"',
+                'e.g., "{}" or "<span underline="low">{}</span>"',
         ),
         (
             "markup_focused",
             None,
             "Text markup of the focused window state. Supports pangomarkup with markup=True."
-            'e.g., "{}" or "<span underline="low">{}</span>"',
+                'e.g., "{}" or "<span underline="low">{}</span>"',
         ),
         (
             "icon_size",
             None,
             "Icon size. " "(Calculated if set to None. Icons are hidden if set to 0.)",
+        ),
+        (
+            "icons_only",
+            False,
+            "Display only the icons if an app does not have icon display the first letter of the application name.",
         ),
     ]
 
@@ -181,11 +186,11 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
         # at least one markup_* option is used.
         # Mixing non markup and markup may cause problems.
         if (
-            self.markup_minimized
-            or self.markup_maximized
-            or self.markup_floating
-            or self.markup_focused
-        ):
+                self.markup_minimized
+                or self.markup_maximized
+                or self.markup_floating
+                or self.markup_focused
+            ):
             enforce_markup = True
         else:
             enforce_markup = False
@@ -254,18 +259,23 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
         # Obey title_width_method if specified
         if self.title_width_method == "uniform":
             width_uniform = width_total // window_count
-            width_boxes = [width_uniform for w in range(window_count)]
+            width_boxes = [width_uniform for _ in range(window_count)]
         else:
             # Default behaviour: calculated width for each task according to
             # icon and task name consisting
             # of state abbreviation and window name
-            width_boxes = [
-                (
-                    self.box_width(names[idx])
-                    + ((self.icon_size + self.padding_x) if icons[idx] else 0)
-                )
-                for idx in range(window_count)
-            ]
+            if self.icons_only:
+                width_boxes = [
+                    (self.icon_size if icons[idx] else 0) for idx in range(window_count)
+                ]
+            else:
+                width_boxes = [
+                    (
+                        self.box_width(names[idx])
+                            + ((self.icon_size + self.padding_x) if icons[idx] else 0)
+                    )
+                    for idx in range(window_count)
+                ]
 
         # Obey max_title_width if specified
         if self.max_title_width:
@@ -288,9 +298,10 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
     def _configure(self, qtile, bar):
         base._Widget._configure(self, qtile, bar)
 
-        if qtile.core.name == "wayland" and self.icon_size != 0:
+        if qtile.core.name == "wayland" and (self.icon_size != 0 and self.icons_only):
             # Disable icons
             self.icon_size = 0
+            self.icons_only = False
             logger.warning("TaskList icons not supported in Wayland.")
 
         if self.icon_size is None:
@@ -302,6 +313,14 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
         self.layout = self.drawer.textlayout(
             "", "ffffff", self.font, self.fontsize, self.fontshadow, wrap=False
         )
+
+        if self.icons_only:
+            self.icon_size = self.icon_size if self.icon_size != 0 else None
+            self.parse_text = lambda _: ""
+            self.txt_maximized = ""
+            self.txt_minimized = ""
+            self.txt_floating = ""
+
         self.setup_hooks()
 
     def update(self, window=None):
@@ -339,20 +358,23 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
             self.layout.width = width
 
     def drawbox(
-        self,
-        offset,
-        text,
-        bordercolor,
-        textcolor,
-        width=None,
-        rounded=False,
-        block=False,
-        icon=None,
-    ):
-        self.drawtext(text, textcolor, width)
+            self,
+            offset,
+            text,
+            bordercolor,
+            textcolor,
+            width=None,
+            rounded=False,
+            block=False,
+            icon=None,
+        ):
+        if not self.icons_only:
+            self.drawtext(text, textcolor, width)
 
-        icon_padding = (self.icon_size + self.padding_x) if icon else 0
-        padding_x = [self.padding_x + icon_padding, self.padding_x]
+            icon_padding = (self.icon_size + self.padding_x) if icon else 0
+            padding_x = [self.padding_x + icon_padding, self.padding_x]
+        else:
+            padding_x = [self.padding_x + self.icon_size, self.padding_x]
 
         if bordercolor is None:
             # border colour is set to None when we don't want to draw a border at all
@@ -399,17 +421,47 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
                 window.cmd_toggle_minimize()
 
     def get_window_icon(self, window):
-        if not window.icons:
-            return None
-
         cache = self._icons_cache.get(window.wid)
         if cache:
             return cache
+
+        if not window.icons:
+            if not self.icons_only:
+                return None
+
+            # TODO: Improve this.
+            try:
+                from PIL import Image, ImageDraw, ImageFont
+                import numpy as np
+
+                font = ImageFont.truetype(self.font, self.icon_size)
+            except ImportError:
+                print("Error")
+                return None
+
+            except OSError:
+                font = ImageFont.truetype("DejaVuSans", self.icon_size)
+
+            image = Image.new(
+                "RGBA",
+                (self.icon_size, self.icon_size),
+                "#00000000" if self.background is None else self.background,
+            )
+            draw = ImageDraw.Draw(image)
+            w, h = draw.textsize(window.name[0], font=font)
+            offset_w, offset_h = font.getoffset(window.name[0])
+            pos = (self.icon_size - w - offset_w) / 2, (self.icon_size - h - offset_h) / 2
+            draw.text(pos, window.name[0], "white", font=font)
+            width, height = self.icon_size, self.icon_size
+            img = cairocffi.ImageSurface.create_for_data(
+                np.array(image), cairocffi.FORMAT_ARGB32, width, height
+            )
 
         icons = sorted(
             iter(window.icons.items()),
             key=lambda x: abs(self.icon_size - int(x[0].split("x")[0])),
         )
+
         icon = icons[0]
         width, height = map(int, icon[0].split("x"))
 
@@ -434,8 +486,12 @@ class TaskList(base._Widget, base.PaddingMixin, base.MarginMixin):
         if not surface:
             return
 
-        x = offset + self.borderwidth + self.padding_x
-        y = self.padding_y + self.borderwidth
+        if self.icons_only:
+            y = self.padding_y * 2
+            x = offset + self.padding_x
+        else:
+            x = offset + self.borderwidth + self.padding_x
+            y = self.padding_y + self.borderwidth
 
         self.drawer.ctx.save()
         self.drawer.ctx.translate(x, y)
